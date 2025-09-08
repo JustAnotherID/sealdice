@@ -1,11 +1,11 @@
-name: Review Dog
+name: Review Dog (Core)
 
 on:
   pull_request_target:
     paths:
-      - '**.go'
-      - 'go.mod'
-      - '.github/workflows/reviewdog.yml'
+      - '.github/workflows/reviewdog-core.yml'
+      - 'core/**.go'
+      - 'core/go.mod'
 
 jobs:
   review-dog:
@@ -13,8 +13,11 @@ jobs:
       checks: write
       contents: read
       pull-requests: write
-    name: Review Dog
+    name: Review Dog (Core)
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./core
     steps:
       - name: Code
         uses: actions/checkout@v4

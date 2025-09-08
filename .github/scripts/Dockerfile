@@ -1,4 +1,4 @@
-FROM alpine:3.19.1
+FROM alpine:3.22.1
 
 # 指定默认时区
 RUN apk add --no-cache tzdata

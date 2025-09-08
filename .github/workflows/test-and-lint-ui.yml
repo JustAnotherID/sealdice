@@ -3,10 +3,18 @@ name: Lint
 on:
   push:
   pull_request:
+    paths:
+      - '.github/workflows/reviewdog.yml'
+      - 'ui/**.{js,mjs,cjs,jsx,ts,mts,cts,tsx,vue}'
+      - 'ui/package.json'
+      - 'ui/pnpm-lock.json'
 
 jobs:
   lint:
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./ui
     steps:
       - name: Code
         uses: actions/checkout@v4

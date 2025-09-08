@@ -1,12 +1,12 @@
-name: Review Dog
+name: Review Dog (UI)
 
 on:
   pull_request_target:
     paths:
-      - '**.{js,mjs,cjs,jsx,ts,mts,cts,tsx,vue}'
-      - 'package.json'
-      - 'pnpm-lock.json'
-      - '.github/workflows/reviewdog.yml'
+      - '.github/workflows/reviewdog-ui.yml'
+      - 'ui/**.{js,mjs,cjs,jsx,ts,mts,cts,tsx,vue}'
+      - 'ui/package.json'
+      - 'ui/pnpm-lock.json'
 
 jobs:
   review-dog:
@@ -14,8 +14,11 @@ jobs:
       checks: write
       contents: read
       pull-requests: write
-    name: Review Dog
+    name: Review Dog (UI)
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./ui
     steps:
       - name: Code
         uses: actions/checkout@v4

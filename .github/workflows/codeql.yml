@@ -18,6 +18,10 @@ on:
     # The branches below must be a subset of the branches above
     branches: [ "master" ]
 
+defaults:
+  run:
+    working-directory: ./android
+
 jobs:
   analyze:
     name: Analyze
@@ -64,7 +68,7 @@ jobs:
         java-version: 17
 
     - name: Setup Gradle
-      uses: gradle/gradle-build-action@v2
+      uses: gradle/actions/setup-gradle@v4
 
     - name: Execute Gradle build
       run: ./gradlew build

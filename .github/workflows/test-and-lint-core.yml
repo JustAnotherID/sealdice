@@ -1,21 +1,24 @@
-name: Test & Lint
+name: Test & Lint (Core)
 
 on:
   push:
     paths:
-      - '**.go'
-      - 'go.mod'
-      - 'test-and-lint.yml'
+      - '.github/workflows/test-and-lint-core.yml'
+      - 'core/**.go'
+      - 'core/go.mod'
   pull_request:
     paths:
-      - '**.go'
-      - 'go.mod'
-      - 'test-and-lint.yml'
+      - '.github/workflows/test-and-lint-core.yml'
+      - 'core/**.go'
+      - 'core/go.mod'
 
 jobs:
-  test-and-lint:
+  core-test-and-lint:
     name: Test & Lint
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./core
     steps:
       - name: Code
         uses: actions/checkout@v4
