@@ -1,15 +1,13 @@
-name: PR Title Checker
+name: PR Title Check
 on:
   pull_request_target:
     types:
       - opened
       - edited
       - synchronize
-      - labeled
-      - unlabeled
 
 jobs:
-  check:
+  pr-title-check:
     permissions:
       checks: write
       contents: read

@@ -1,4 +1,4 @@
-name: close-unread-issues.yml
+name: Close Unread issues
 on:
   issues:
     types: [opened]

@@ -1,28 +1,11 @@
-# SealDice
+# SealDice Core
 
 ![Software License](https://img.shields.io/badge/license-MIT-brightgreen.svg?style=flat-square)
 ![Core](https://img.shields.io/badge/SealDice-Core-blue)
 
-海豹 TRPG 骰点核心，开源跑团辅助工具，支持 QQ/Kook/Discord 等。
+[SealDice 海豹核心](https://github.com/sealdice/sealdice) 的后端实现。
 
-轻量 · 易用 · 全能
-
-## 文档
-
-见 [使用手册](https://sealdice.github.io/sealdice-manual-next/)。
-
-## SealDice Project
-
-- [核心](https://github.com/sealdice/sealdice-core)（本仓库）：Go 后端代码仓库，也作为海豹的主仓库，Bug 可反馈在该仓库的 issue 中；
-- [UI](https://github.com/sealdice/sealdice-ui)：前端代码，基于 Vue3 + ElementPlus 开发；
-- [手册](https://github.com/sealdice/sealdice-manual-next)：官方手册源码，由 VitePress 驱动；
-- [构建](https://github.com/sealdice/sealdice-build)：自动构建仓库，用于自动化发布海豹的每日构建包与 Release；
-- [Android](https://github.com/sealdice/sealdice-android)：Android 应用源码；
-- ……
-
-注：如无特殊说明，所有代码文件均遵循 MIT 开源协议
-
-## Core 开发环境搭建
+## 开发环境搭建
 
 ### golang 开发环境
 
@@ -76,7 +59,7 @@ task run
 
 从已发布的海豹二进制包中，解压 `data`、`lagrange` 两个目录到代码目录下。
 
-同时需要在项目的 `static/frontend` 下放置用于打包进 core 的 ui 静态资源文件，可手动提供，也可通过命令自动从 github 拉取：
+同时需要在项目的 `static/frontend` 下放置用于打包进 core 的 ui 静态资源文件，可手动提供，也可通过命令自动从 GitHub 拉取：
 
 ```bash
 go generate ./...
@@ -117,7 +100,7 @@ go run .
 
 ### 从哪开始看
 
-从 `main.go` 开始，这里海豹分出了几个线程，一个启动核心并提供服务，另一个提供 ui 的 http 服务。
+从 `main.go` 开始，这里海豹分出了几个线程，一个启动核心并提供服务，另一个提供 ui 的 HTTP 服务。
 
 可以顺藤摸瓜了解海豹如何启动，如何提供服务，如何响应指令。指令响应的部分写在 `im_session.go` 中
 
@@ -141,7 +124,7 @@ go run .
 
 注：每次在 UI 上添加 QQ 账号，其实就是创建了一个 `EndPointInfo` 对象，并制定 Adapter 为 `PlatformAdapterQQOnebot`
 
-目前实现的两个 adapter，一个对应 onebot 协议，主要用于 QQ，另一个对应 http，用于 UI 后台的测试窗口。
+目前实现的两个 adapter，一个对应 onebot 协议，主要用于 QQ，另一个对应 HTTP，用于 UI 后台的测试窗口。
 
 观察 `PlatformAdapterHttp` 如何运作起来是一个很好的切入点，因为他非常简单。
 

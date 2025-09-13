@@ -1,6 +1,9 @@
-# sealdice-manual-next
+# SealDice Manual
 
-VitePress 驱动的海豹骰官方使用手册。
+![Software MIT License](https://img.shields.io/badge/license-MIT-brightgreen.svg?style=flat-square)
+![Manual](https://img.shields.io/badge/SealDice-Manual-blue)
+
+VitePress 驱动的 [SealDice 海豹核心](https://github.com/sealdice/sealdice) 官方使用手册。
 
 当前手册预览可见 [海豹手册](https://sealdice.github.io/sealdice-manual-next/)。
 
