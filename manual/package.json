@@ -18,7 +18,7 @@
   "license": "MIT",
   "devDependencies": {
     "@braintree/sanitize-url": "^7.1.1",
-    "@types/node": "^24.3.1",
+    "@types/node": "^24.4.0",
     "autocorrect-node": "^2.14.0",
     "cytoscape": "^3.32.1",
     "cytoscape-cose-bilkent": "^4.1.0",
