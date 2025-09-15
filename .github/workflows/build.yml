@@ -1,0 +1,187 @@
+name: Build
+
+on:
+  push:
+    branches:
+      - master
+  workflow_dispatch:
+
+env:
+  ANDROID_NDK_VERSION: r25c
+  APP_CHANNEL: dev
+  COMMIT_ID: ${{ github.sha }}
+  NT_SIGN_URL: ${{ secrets.NT_SIGN_URL }}
+  SEAL_TRUSTED_PRIVATE_KEY: ${{ secrets.SEAL_TRUSTED_PRIVATE_KEY }}
+
+jobs:
+  build:
+    name: Build Core
+    runs-on: ${{ matrix.goos == 'darwin' && 'macos-latest' || 'ubuntu-latest' }}
+    strategy:
+      matrix:
+        # target: linux/amd64, linux/arm64, windows/amd64, darwin/amd64, darwin/arm64
+        goos: [ linux, windows, darwin ]
+        goarch: [ '386', amd64, arm64 ]
+        exclude:
+          - goos: linux
+            goarch: '386'
+          - goos: windows
+            goarch: '386'
+          - goos: windows
+            goarch: arm64
+          - goos: darwin
+            goarch: '386'
+        include:
+          - goos: android
+            goarch: arm64
+      fail-fast: true
+    steps:
+      - uses: actions/checkout@v5
+
+      # Prepare Node Env
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+          run_install: false
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: 'pnpm'
+      - name: Install pnpm dependencies
+        run: pnpm install
+
+      # Build UI
+      - name: Build UI and Move to Core
+        run: pnpm run build:ui
+      - name: Move UI Dist to Core
+        run: mv ui/dist core/static/frontend
+
+      # Prepare Go Env
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: 'core/go.mod'
+          cache-dependency-path: |
+            core/go.sum
+      ## Install Cgo Cross-compiler
+      - name: Install Cgo Cross-compiler for Windows
+        if: matrix.goos == 'windows'
+        run: sudo apt-get -y install mingw-w64
+      - name: Install Cgo Cross-compiler for Linux Amd64 Musl
+        if: matrix.goos == 'linux' && matrix.goarch == 'amd64'
+        run: sudo apt-get -y install musl-tools
+      - name: Install Cgo Cross-compiler for Linux Arm64 Musl
+        if: matrix.goos == 'linux' && matrix.goarch == 'arm64'
+        run: |
+          wget https://github.com/sealdice/tooolchain/releases/download/1/aarch64-linux-musl-cross.tgz;
+          tar zxf aarch64-linux-musl-cross.tgz;
+      - name: Setup Android NDK
+        id: setup-ndk
+        if: matrix.goos == 'android'
+        uses: nttld/setup-ndk@v1
+        with:
+          ndk-version: ${{ env.ANDROID_NDK_VERSION }}
+          link-to-sdk: true
+          local-cache: false
+      ## Install Go Dependencies
+      - name: Go install
+        working-directory: ./core
+        run: |
+          go mod tidy
+          go get .
+      ## Revert Golang1.25 commit for Windows7/8
+      # copy from https://github.com/MetaCubeX/mihomo/blob/dbb002a5ba2e0e79158fd6e3264ac44aedf0bf72/.github/workflows/build.yml#L157-L173
+      # modify from https://github.com/restic/restic/issues/4636#issuecomment-1896455557
+      # this patch file only works on golang1.25.x
+      # that means after golang1.25 release it must be changed
+      # revert:
+      # 693def151adff1af707d82d28f55dba81ceb08e1: "crypto/rand,runtime: switch RtlGenRandom for ProcessPrng"
+      # 7c1157f9544922e96945196b47b95664b1e39108: "net: remove sysSocket fallback for Windows 7"
+      # 48042aa09c2f878c4faa576948b07fe625c4707a: "syscall: remove Windows 7 console handle workaround"
+      # a17d959debdb04cd550016a3501dd09d50cd62e7: "runtime: always use LoadLibraryEx to load system libraries"
+      # 534d6a1a9c81b25bdad1052e736b2f072caa3903: "crypto/rand: prevent Read argument from escaping to heap"
+      # see:https://github.com/XTLS/go-win7/blob/dc94f3421137d9a6327b281dd401c2c489b04cbb/README-zho-hans.md
+      - name: Revert Golang1.25 commit for Windows7/8
+        if: ${{ matrix.goos == 'windows' }}
+        run: |
+          cd $(go env GOROOT)
+          patch --verbose -p 1 < $GITHUB_WORKSPACE/.github/patch_go/unified-1-25-patch.diff
+
+      # Set Project Env
+      - name: Get current time
+        uses: Kaven-Universe/github-action-current-date-time@v1
+        id: currentTime
+        with:
+          format: YYYYMMDD
+          timezone-offset: -480
+      - name: Set Project Env
+        env:
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
+          CUR_TIME: ${{ steps.currentTime.outputs.time }}
+          COMMIT_ID: ${{ github.sha }}
+          NDK_PATH: ${{ steps.setup-ndk.outputs.ndk-path }}
+        run: |
+          echo "CUR_TIME=${CUR_TIME}" >> $GITHUB_ENV;
+          echo "PROJECT_VERSION=${CUR_TIME}-${COMMIT_ID::7}" >> $GITHUB_ENV;
+          echo "PROJECT_VERSION_DOT=${CUR_TIME}.${COMMIT_ID::7}" >> $GITHUB_ENV;
+          if [ $GOOS = 'windows' ]; then
+            echo "BINARY_NAME=sealdice-core.exe" >> $GITHUB_ENV;
+          else
+            echo "BINARY_NAME=sealdice-core" >> $GITHUB_ENV;
+          fi
+          if [ $GOOS = 'windows' ] && [ $GOARCH = '386' ]; then
+            echo "CC=i686-w64-mingw32-gcc" >> $GITHUB_ENV;
+          elif [ $GOOS = 'windows' ] && [ $GOARCH = 'amd64' ]; then
+            echo "CC=x86_64-w64-mingw32-gcc" >> $GITHUB_ENV;
+          elif [ $GOOS = 'linux' ] && [ $GOARCH = 'amd64' ]; then
+            echo "CC=musl-gcc" >> $GITHUB_ENV;
+          elif [ $GOOS = 'linux' ] && [ $GOARCH = 'arm64' ]; then
+            echo "CC=$(readlink -f ./aarch64-linux-musl-cross/bin/aarch64-linux-musl-gcc)" >> $GITHUB_ENV;
+          elif [ $GOOS = 'android' ]; then
+            echo "CC=${NDK_PATH}/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android33-clang" >> $GITHUB_ENV;
+          fi
+
+      # Build Core Binary
+      - name: Build Core Binary
+        if: matrix.goos != 'linux' && matrix.goos != 'darwin'
+        env:
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
+          GO111MODULE: on
+          CGO_ENABLED: 1
+          CGO_FLAGS: -Werror=unused-variable -Werror=implicit-function-declaration -O2 -H=windowsgui
+        working-directory: ./core
+        run: go build -o "output/$BINARY_NAME" -trimpath -ldflags "-s -w -X sealdice-core/dice.VERSION_PRERELEASE=-${APP_CHANNEL} -X sealdice-core/dice.VERSION_BUILD_METADATA=+${PROJECT_VERSION_DOT} -X sealdice-core/dice.APP_CHANNEL=${APP_CHANNEL} -X 'sealdice-core/dice.DefaultSignUrl=${NT_SIGN_URL}' -X 'sealdice-core/dice.SealTrustedClientPrivateKey=${SEAL_TRUSTED_PRIVATE_KEY}'" .
+      - name: Build Core Binary (linux musl)
+        if: matrix.goos == 'linux'
+        env:
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
+          GO111MODULE: on
+          CGO_ENABLED: 1
+          CGO_FLAGS: -Werror=unused-variable -Werror=implicit-function-declaration -O2 -H=windowsgui
+        working-directory: ./core
+        run: go build -tags musl -o "output/$BINARY_NAME" -trimpath -ldflags "-s -w -linkmode external -extldflags '-static' -X sealdice-core/dice.VERSION_PRERELEASE=-${APP_CHANNEL} -X sealdice-core/dice.VERSION_BUILD_METADATA=+${PROJECT_VERSION_DOT} -X sealdice-core/dice.APP_CHANNEL=${APP_CHANNEL} -X 'sealdice-core/dice.DefaultSignUrl=${NT_SIGN_URL}' -X 'sealdice-core/dice.SealTrustedClientPrivateKey=${SEAL_TRUSTED_PRIVATE_KEY}'" .
+      - name: Build Core Binary (darwin)
+        if: matrix.goos == 'darwin'
+        env:
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
+          GO111MODULE: on
+          CGO_ENABLED: 1
+          CGO_FLAGS: -Werror=unused-variable -Werror=implicit-function-declaration -O2 -mmacosx-version-min=10.12
+          CGO_CFLAGS: -mmacosx-version-min=10.12
+        working-directory: ./core
+        run: go build -o "output/sealdice-core" -trimpath -ldflags "-s -w -X sealdice-core/dice.VERSION_PRERELEASE=-${APP_CHANNEL} -X sealdice-core/dice.VERSION_BUILD_METADATA=+${PROJECT_VERSION_DOT} -X sealdice-core/dice.APP_CHANNEL=${APP_CHANNEL} -X 'sealdice-core/dice.DefaultSignUrl=${NT_SIGN_URL}' -X 'sealdice-core/dice.SealTrustedClientPrivateKey=${SEAL_TRUSTED_PRIVATE_KEY}'" .
+      - name: Run UPX
+        uses: crazy-max/ghaction-upx@v3
+        if: matrix.goos == 'windows' || matrix.goos == 'linux'
+        with:
+          version: latest
+          files: ./core/output/${{ env.BINARY_NAME }}
+          args: -9 -fq
+      - name: Upload Core
+        uses: actions/upload-artifact@v4
+        with:
+          name: sealdice-core_${{ env.PROJECT_VERSION }}_${{ matrix.goos }}_${{ matrix.goarch }}
+          path: ./core/output
