@@ -1,0 +1,16 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "build ui",
+      "type": "shell",
+      "command": "task",
+      "args": [
+        "build:ui",
+      ],
+      "presentation": {
+        "reveal": "silent",
+      },
+    },
+  ],
+}

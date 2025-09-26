@@ -1,0 +1,22 @@
+{
+  // Use IntelliSense to learn about possible attributes.
+  // Hover to view descriptions of existing attributes.
+  // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Launch Software",
+      "type": "go",
+      "request": "launch",
+      "mode": "auto",
+      "program": "${workspaceFolder}/core",
+      "preLaunchTask": "build ui",
+      // NOTE(20250928): 以当前状态, VSCode 无法同时处理 调试对象路径含空格 和
+      //   通过参数数组的一项传入多个命令行参数 (通过一个 ${input} 对话框输入多个参数).
+      //   因此这里有意留空, 如果使用者有需要可以临时修改.
+      //   Ref: https://github.com/microsoft/vscode-python-debugger/issues/233
+      //   Ref: https://stackoverflow.com/questions/78907444/is-it-possible-use-vs-code-to-pass-multiple-command-line-arguments-to-python-scr
+      "args": [],
+    },
+  ],
+}
