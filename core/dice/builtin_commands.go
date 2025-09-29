@@ -2051,6 +2051,11 @@ func (d *Dice) registerCoreCommands() {
 				}
 				return CmdExecuteResult{Matched: true, Solved: true}
 			case "update":
+				if getBindingId() != "" {
+					// 以免绑定状态下不生效的群内卡覆盖了绑定的卡
+					ReplyToSender(ctx, msg, "当前角色已绑定")
+					return CmdExecuteResult{Matched: true, Solved: true}
+				}
 				name := getNickname()
 				savedID, _ := am.CharIdGetByName(ctx.Player.UserID, name)
 				if savedID == "" {
