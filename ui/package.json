@@ -65,7 +65,7 @@
     "eslint-plugin-oxlint": "^1.16.0",
     "eslint-plugin-vue": "^10.3.0",
     "iconify-icon": "^3.0.1",
-    "jiti": "^2.5.1",
+    "jiti": "^2.6.0",
     "npm-run-all2": "^8.0.4",
     "oxlint": "^1.16.0",
     "postcss": "^8.5.6",
