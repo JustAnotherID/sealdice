@@ -18,6 +18,7 @@ const (
 	LogKeyDatabase = "database"
 	LogKeyWeb      = "web"
 	LogKeyAdapter  = "adapter"
+	LogKeyHelpDoc  = "helpdoc"
 )
 
 func InitLogger(level zapcore.Level, ui *UIWriter) *zap.SugaredLogger {

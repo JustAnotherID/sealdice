@@ -18,7 +18,7 @@ import (
 	"github.com/samber/lo"
 	ds "github.com/sealdice/dicescript"
 
-	"sealdice-core/dice/docengine"
+	"sealdice-core/dice/helpdoc"
 )
 
 /** 这几条指令不能移除 */
@@ -348,53 +348,35 @@ func (d *Dice) registerCoreCommands() {
 				return CmdExecuteResult{Matched: true, Solved: true}
 			}
 
-			hasSecond := len(search.Hits) >= 2
-			// 准备接下来读取这里面的Fields
-			bestRaw := search.Hits[0].Fields
-			best := &docengine.HelpTextItem{
-				Group:       fmt.Sprintf("%v", bestRaw["group"]),
-				From:        fmt.Sprintf("%v", bestRaw["from"]),
-				Title:       fmt.Sprintf("%v", bestRaw["title"]),
-				Content:     fmt.Sprintf("%v", bestRaw["content"]),
-				PackageName: fmt.Sprintf("%v", bestRaw["package"]),
-				// 这俩是什么东西？！
-				// KeyWords:   "",
-				// RelatedExt: nil,
-			}
-			others := ""
-
+			result := ""
 			for _, i := range search.Hits {
-				t := &docengine.HelpTextItem{
+				t := &helpdoc.HelpTextItem{
 					Group:       fmt.Sprintf("%v", i.Fields["group"]),
 					Title:       fmt.Sprintf("%v", i.Fields["title"]),
 					PackageName: fmt.Sprintf("%v", i.Fields["package"]),
 				}
-				if t.Group != "" && t.Group != HelpBuiltinGroup {
-					others += fmt.Sprintf("[%s][%s]【%s:%s】 匹配度%.2f\n", i.ID, t.Group, t.PackageName, t.Title, i.Score)
+				if t.Group != "" && t.Group != helpdoc.HelpBuiltinGroup {
+					result += fmt.Sprintf("[%s][%s]【%s:%s】 匹配度%.2f\n", i.ID, t.Group, t.PackageName, t.Title, i.Score)
 				} else {
-					others += fmt.Sprintf("[%s]【%s:%s】 匹配度%.2f\n", i.ID, t.PackageName, t.Title, i.Score)
+					result += fmt.Sprintf("[%s]【%s:%s】 匹配度%.2f\n", i.ID, t.PackageName, t.Title, i.Score)
 				}
-			}
-
-			var showBest bool
-			if hasSecond {
-				offset := d.Parent.Help.GetShowBestOffset()
-				val := search.Hits[1].Score - search.Hits[0].Score
-				if val < 0 {
-					val = -val
-				}
-				if val > float64(offset) {
-					showBest = true
-				}
-				if best.Title == text {
-					showBest = true
-				}
-			} else {
-				showBest = true
 			}
 
 			var bestResult string
-			if showBest {
+			if search.HitBest {
+				// 准备接下来读取这里面的Fields
+				bestRaw := search.Hits[0].Fields
+				best := &helpdoc.HelpTextItem{
+					Group:       fmt.Sprintf("%v", bestRaw["group"]),
+					From:        fmt.Sprintf("%v", bestRaw["from"]),
+					Title:       fmt.Sprintf("%v", bestRaw["title"]),
+					Content:     fmt.Sprintf("%v", bestRaw["content"]),
+					PackageName: fmt.Sprintf("%v", bestRaw["package"]),
+					// 这俩是什么东西？！
+					// KeyWords:   "",
+					// RelatedExt: nil,
+				}
+
 				// Copied from 支援换行符 By Fripine #963
 				best.Content = ctx.TranslateSplit(best.Content)
 				content := d.Parent.Help.GetContent(best, 0)
@@ -402,7 +384,7 @@ func (d *Dice) registerCoreCommands() {
 			}
 
 			prefix := d.Parent.Help.GetPrefixText()
-			rplCurPage := fmt.Sprintf("本页结果:\n%s\n", others)
+			rplCurPage := fmt.Sprintf("本页结果:\n%s\n", result)
 			rplDetailHint := "使用\".find <序号>\"可查看明细，如.find 123\n"
 			// pgStart是下标闭左边界, 加1以获得序号; pgEnd是下标开右边界, 无需调整就是最后一条的序号
 			rplPageNum := fmt.Sprintf("共%d条结果, 当前显示第%d页(第%d条 到 第%d条)\n", total, page, pgStart+1, pgEnd)
@@ -487,7 +469,7 @@ func (d *Dice) registerCoreCommands() {
 			search, _, _, _, err := d.Parent.Help.Search(ctx, cmdArgs.CleanArgs, true, 1, 1, "")
 			if err == nil {
 				if len(search.Hits) > 0 {
-					a := &docengine.HelpTextItem{
+					a := &helpdoc.HelpTextItem{
 						Group: fmt.Sprintf("%v", search.Hits[0].Fields["group"]),
 						From:  fmt.Sprintf("%v", search.Hits[0].Fields["from"]),
 						Title: fmt.Sprintf("%v", search.Hits[0].Fields["title"]),

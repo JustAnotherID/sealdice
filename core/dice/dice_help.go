@@ -1,8 +1,6 @@
 package dice
 
 import (
-	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -12,121 +10,40 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
-	"sealdice-core/dice/docengine"
+	"go.uber.org/zap"
+
+	"sealdice-core/dice/helpdoc"
+	"sealdice-core/dice/helpdoc/engine"
 	"sealdice-core/logger"
 
 	"gopkg.in/yaml.v3"
 
 	nanoid "github.com/matoous/go-nanoid/v2"
-
-	"github.com/xuri/excelize/v2"
 )
-
-const HelpBuiltinGroup = "builtin"
-
-const (
-	Unload int = iota
-	Loaded
-	LoadError
-)
-
-type HelpDoc struct {
-	Key        string `json:"key"`
-	Name       string `json:"name"`
-	Path       string `json:"path"`
-	Group      string `json:"group"`
-	Type       string `json:"type"`
-	IsDir      bool   `json:"isDir"`
-	LoadStatus int    `json:"loadStatus"`
-	Deleted    bool   `json:"deleted"`
-
-	Children []*HelpDoc `json:"children"`
-}
-
-type HelpTextItems []*docengine.HelpTextItem
-
-func (e HelpTextItems) String(i int) string {
-	return e[i].Title
-}
-
-func (e HelpTextItems) Len() int {
-	return len(e)
-}
 
 type HelpManager struct {
+	lock sync.RWMutex
+
 	CurID        uint64
-	EngineType   EngineType
+	EngineType   helpdoc.EngineType
 	LoadingFn    string
-	HelpDocTree  []*HelpDoc
+	HelpDocTree  []*helpdoc.HelpDoc
 	GroupAliases map[string]string
 	// SearchEngine
-	searchEngine docengine.SearchEngine
+	searchEngine helpdoc.SearchEngine
 
-	Config *HelpConfig
-}
-
-type EngineType int
-
-const (
-	BleveSearch EngineType = iota // 0
-	Clover                        // 1
-	MeiliSearch                   // 2
-)
-
-const HelpConfigFilename = "help_config.yaml"
-
-type HelpConfig struct {
-	Aliases map[string][]string `json:"aliases" yaml:"aliases"`
-}
-
-type HelpDocFormat struct {
-	Mod     string            `json:"mod"`
-	Author  string            `json:"author"`
-	Brief   string            `json:"brief"`
-	Comment string            `json:"comment"`
-	Helpdoc map[string]string `json:"helpdoc"`
-}
-
-func (m *HelpManager) loadSearchEngine() {
-	if runtime.GOARCH == "arm64" {
-		// 等木落测试，测试之前先不实现这个Clover模式，如果直接就能用，那也不必再实现他了
-		m.EngineType = BleveSearch
-	}
-	// 删除旧版本数据，这里先不改，先集中精力测试BleveSearch
-	indexDir := "./data/_index"
-	_ = os.RemoveAll(indexDir)
-	indexDir = "./_help_cache"
-	_ = os.RemoveAll(indexDir)
-	switch m.EngineType {
-	case Clover:
-	case BleveSearch:
-		engine, err := docengine.NewBleveSearchEngine()
-		if err != nil {
-			logger.M().Errorf("初始化帮助文档失败，帮助文档不可用!")
-			return
-		}
-		m.searchEngine = engine
-	default:
-		// 如果BleveSearch兼容性差，到时候全部回退到Clover查询
-		panic("unhandled default case")
-	}
-}
-
-func (m *HelpManager) Close() {
-	// 关闭Bucket，并删除所有数据
-	// TODO:暂时先不动删除逻辑
-	m.searchEngine.Close()
-	_ = os.RemoveAll("./_help_cache")
+	Config *helpdoc.HelpConfig
 }
 
 func (m *HelpManager) Load(internalCmdMap CmdMapCls, extList []*ExtInfo) {
-	log := logger.M()
+	log := zap.S().Named(logger.LogKeyHelpDoc)
 	m.loadSearchEngine()
 
-	_ = m.AddItem(docengine.HelpTextItem{
-		Group: HelpBuiltinGroup,
+	_ = m.AddItem(helpdoc.HelpTextItem{
+		Group: helpdoc.HelpBuiltinGroup,
 		Title: "骰点",
 		Content: `.help 骰点：
  .r  //丢一个100面骰
@@ -138,8 +55,8 @@ func (m *HelpManager) Load(internalCmdMap CmdMapCls, extList []*ExtInfo) {
 		PackageName: "帮助",
 	})
 
-	_ = m.AddItem(docengine.HelpTextItem{
-		Group: HelpBuiltinGroup,
+	_ = m.AddItem(helpdoc.HelpTextItem{
+		Group: helpdoc.HelpBuiltinGroup,
 		Title: "扩展",
 		Content: `.help 扩展：
 扩展功能可以让你开关部分指令。
@@ -156,8 +73,8 @@ func (m *HelpManager) Load(internalCmdMap CmdMapCls, extList []*ExtInfo) {
 		PackageName: "帮助",
 	})
 
-	_ = m.AddItem(docengine.HelpTextItem{
-		Group: HelpBuiltinGroup,
+	_ = m.AddItem(helpdoc.HelpTextItem{
+		Group: helpdoc.HelpBuiltinGroup,
 		Title: "跑团",
 		Content: `.help 跑团：
 .st 力量50 //载入技能/属性
@@ -175,7 +92,7 @@ func (m *HelpManager) Load(internalCmdMap CmdMapCls, extList []*ExtInfo) {
 		PackageName: "帮助",
 	})
 
-	m.HelpDocTree = make([]*HelpDoc, 0)
+	m.HelpDocTree = make([]*helpdoc.HelpDoc, 0)
 	entries, err := os.ReadDir("data/helpdoc")
 	if err != nil {
 		log.Errorf("unable to read helpdoc folder: %v", err)
@@ -184,15 +101,15 @@ func (m *HelpManager) Load(internalCmdMap CmdMapCls, extList []*ExtInfo) {
 	totalEntries := len(entries)
 	for i, entry := range entries {
 		progress := float64(i+1) / float64(totalEntries) * 100
-		log.Infof("[帮助文档] 处理用户定义帮助文档组[文件夹]: 当前帮助文档加载进度: %s %.2f%% (%d/%d)", entry.Name(), progress, i+1, totalEntries)
+		log.Infof("处理用户定义帮助文档组[文件夹]: 当前帮助文档加载进度: %s %.2f%% (%d/%d)", entry.Name(), progress, i+1, totalEntries)
 		if strings.HasPrefix(entry.Name(), ".") {
 			continue
 		}
-		if filepath.Base(entry.Name()) == HelpConfigFilename {
+		if filepath.Base(entry.Name()) == helpdoc.HelpConfigFilename {
 			m.loadHelpConfig()
 			continue
 		}
-		var child HelpDoc
+		var child helpdoc.HelpDoc
 		child.Key = generateHelpDocKey()
 		child.Name = entry.Name()
 		child.Path = path.Join("data/helpdoc", entry.Name())
@@ -200,20 +117,20 @@ func (m *HelpManager) Load(internalCmdMap CmdMapCls, extList []*ExtInfo) {
 		if child.IsDir {
 			child.Group = entry.Name()
 			child.Type = "dir"
-			child.Children = make([]*HelpDoc, 0)
+			child.Children = make([]*helpdoc.HelpDoc, 0)
 		} else {
 			child.Group = "default"
 			child.Type = filepath.Ext(child.Path)
 		}
-		buildHelpDocTree(&child, func(d *HelpDoc) {
+		buildHelpDocTree(&child, func(d *helpdoc.HelpDoc) {
 			if !d.IsDir {
 				ok := m.loadHelpDoc(d.Group, d.Path)
 				// TODO: Batch过大好像不会释放……
 				err = m.AddItemApply(false)
 				if ok && err == nil {
-					d.LoadStatus = Loaded
+					d.LoadStatus = helpdoc.Loaded
 				} else {
-					d.LoadStatus = LoadError
+					d.LoadStatus = helpdoc.LoadError
 				}
 			}
 		})
@@ -223,8 +140,8 @@ func (m *HelpManager) Load(internalCmdMap CmdMapCls, extList []*ExtInfo) {
 	if err != nil {
 		log.Errorf("加载用户自定义帮助文档出现异常!: %v", err)
 	}
-	log.Infof("[帮助文档] 用户定义的帮助文档组已加载完成!")
-	log.Infof("[帮助文档] 正在处理指令相关（含插件）帮助文档组")
+	log.Infof("用户定义的帮助文档组已加载完成!")
+	log.Infof("正在处理指令相关（含插件）帮助文档组")
 	err = m.addInternalCmdHelp(internalCmdMap)
 	if err != nil {
 		log.Errorf("加载内置指令帮助文档出现异常: %v", err)
@@ -241,18 +158,42 @@ func (m *HelpManager) Load(internalCmdMap CmdMapCls, extList []*ExtInfo) {
 	if err != nil {
 		log.Errorf("加载插件指令帮助文档出现异常: %v", err)
 	}
-	log.Infof("[帮助文档] 指令相关（含插件）帮助文档组已加载完成!")
+	log.Infof("指令相关（含插件）帮助文档组已加载完成!")
 	m.CurID = m.searchEngine.GetTotalID()
 	elapsed := time.Since(start) // 计算执行时间
 	log.Infof("帮助文档加载完毕，共耗费时间: %s 共计加载条目:%d\n", elapsed, m.CurID)
 }
 
+func (m *HelpManager) loadSearchEngine() {
+	if runtime.GOARCH == "arm64" {
+		m.EngineType = helpdoc.Bleve
+	}
+	// 删除旧版本数据，这里先不改，先集中精力测试BleveSearch
+	indexDir := "./data/_index"
+	_ = os.RemoveAll(indexDir)
+	indexDir = "./_help_cache"
+	_ = os.RemoveAll(indexDir)
+	switch m.EngineType {
+	case helpdoc.Bleve:
+	case helpdoc.Clover:
+		bleveEngine, err := engine.NewBleveEngine()
+		if err != nil {
+			log := zap.S().Named(logger.LogKeyHelpDoc)
+			log.Errorf("初始化帮助文档失败，帮助文档不可用!")
+			return
+		}
+		m.searchEngine = bleveEngine
+	default:
+		panic("unhandled default case")
+	}
+}
+
 func (m *HelpManager) loadHelpConfig() {
-	data, err := os.ReadFile(filepath.Join("./data/helpdoc", HelpConfigFilename))
+	data, err := os.ReadFile(filepath.Join("./data/helpdoc", helpdoc.HelpConfigFilename))
 	if err != nil {
 		panic(err)
 	}
-	var config HelpConfig
+	var config helpdoc.HelpConfig
 	err = yaml.Unmarshal(data, &config)
 	if err != nil {
 		panic(err)
@@ -261,7 +202,7 @@ func (m *HelpManager) loadHelpConfig() {
 	m.refreshHelpGroupAliases(config)
 }
 
-func (m *HelpManager) refreshHelpGroupAliases(config HelpConfig) {
+func (m *HelpManager) refreshHelpGroupAliases(config helpdoc.HelpConfig) {
 	// 先清空旧的别名
 	m.GroupAliases = make(map[string]string)
 	for group, aliases := range config.Aliases {
@@ -273,7 +214,14 @@ func (m *HelpManager) refreshHelpGroupAliases(config HelpConfig) {
 	}
 }
 
-func (m *HelpManager) SaveHelpConfig(config *HelpConfig) error {
+func (m *HelpManager) Close() {
+	// 关闭Bucket，并删除所有数据
+	// TODO:暂时先不动删除逻辑
+	m.searchEngine.Close()
+	_ = os.RemoveAll("./_help_cache")
+}
+
+func (m *HelpManager) SaveHelpConfig(config *helpdoc.HelpConfig) error {
 	m.Config = config
 	m.refreshHelpGroupAliases(*config)
 
@@ -281,7 +229,7 @@ func (m *HelpManager) SaveHelpConfig(config *HelpConfig) error {
 	if err != nil {
 		return err
 	}
-	err = os.WriteFile(filepath.Join("./data/helpdoc", HelpConfigFilename), data, 0644)
+	err = os.WriteFile(filepath.Join("./data/helpdoc", helpdoc.HelpConfigFilename), data, 0644)
 	if err != nil {
 		return err
 	}
@@ -289,158 +237,31 @@ func (m *HelpManager) SaveHelpConfig(config *HelpConfig) error {
 }
 
 func (m *HelpManager) loadHelpDoc(group string, path string) bool {
-	log := logger.M()
-	fileExt := filepath.Ext(path)
+	log := zap.S().Named(logger.LogKeyHelpDoc)
+	m.lock.Lock()
+	defer m.lock.Unlock()
 
-	switch fileExt {
-	case ".json":
-		m.LoadingFn = path
-		data := HelpDocFormat{}
-		pack, err := os.ReadFile(path)
-		if err == nil {
-			err = json.Unmarshal(pack, &data)
-			if err == nil {
-				for k, v := range data.Helpdoc {
-					_ = m.AddItem(docengine.HelpTextItem{
-						Group:       group,
-						From:        path,
-						Title:       k,
-						Content:     v,
-						PackageName: data.Mod,
-					})
-				}
-			}
-		}
-		return true
-	case ".xlsx":
-		// 梨骰帮助文件
-		m.LoadingFn = path
-		f, err := excelize.OpenFile(path)
-		if err != nil {
-			log.Error("HelpManager.loadHelpDoc", err)
-			break
-		}
-
-		for index, s := range f.GetSheetList() {
-			rows, err := f.GetRows(s)
-			if err == nil {
-				var synonymCount int
-				for i, row := range rows {
-					if i == 0 {
-						synonymCount, err = validateXlsxHeaders(row)
-						if err == nil {
-							// 跳过第一行
-							continue
-						} else {
-							log.Errorf("%s sheet %d(zero-based): %s\n", path, index, err)
-							break
-						}
-					}
-					if len(row) < 3 {
-						continue
-					}
-					key := row[0]
-					for j := range synonymCount {
-						if len(row[1+j]) > 0 {
-							key += "/" + row[1+j]
-						}
-					}
-					content := row[synonymCount+1]
-
-					_ = m.AddItem(docengine.HelpTextItem{
-						Group:       group,
-						From:        path,
-						Title:       key,
-						Content:     content,
-						PackageName: s,
-					})
-				}
-			}
-		}
-
-		// Close the spreadsheet.
-		if err := f.Close(); err != nil {
-			log.Error("HelpManager.loadHelpDoc", err)
-		}
-		return true
+	m.LoadingFn = path
+	items, err := helpdoc.Read(group, path)
+	if err != nil {
+		log.Error("HelpManager.loadHelpDoc: ", err)
+		return false
 	}
-	return false
-}
-
-// validateXlsxHeaders 验证 xlsx 格式 helpdoc 的表头是否是 Key Synonym（可能有多列） Content Description Catalogue Tag
-func validateXlsxHeaders(headers []string) (int, error) {
-	if len(headers) < 3 {
-		return 0, errors.New("helpdoc格式错误，缺少必须列 Key Synonym Content")
+	for _, item := range items {
+		_ = m.AddItem(item)
 	}
-
-	var (
-		index    int
-		expected string
-	)
-	var synonymCount int
-	expected = "key"
-out:
-	for index < len(headers) {
-		// 放宽同义词大小写校验
-		header := strings.ToLower(headers[index])
-		switch expected {
-		case "key":
-			if header != "key" {
-				return 0, fmt.Errorf("helpdoc表头格式错误，第%d列表头必须是Key，当前为%s", index+1, header)
-			}
-			expected = "synonym"
-			index++
-		case "synonym":
-			if header != "synonym" {
-				return 0, fmt.Errorf("helpdoc表头格式错误，第%d列表头必须是Synonym，当前为%s", index+1, header)
-			}
-			expected = "content"
-			index++
-			synonymCount++
-		case "content":
-			if header == "" || header == "synonym" {
-				// 有多列同义词
-				index++
-				synonymCount++
-				continue
-			} else if header != "content" {
-				return 0, fmt.Errorf("helpdoc表头格式错误，第%d列表头必须是为空白（表示同义词列）或者Content，当前为%s", index+1, header)
-			}
-			expected = "description"
-			index++
-		case "description":
-			if header != "description" {
-				return 0, fmt.Errorf("helpdoc表头格式错误，第%d列表头必须是Description，当前为%s", index+1, header)
-			}
-			expected = "catalogue"
-			index++
-		case "catalogue":
-			if header != "catalogue" {
-				return 0, fmt.Errorf("helpdoc表头格式错误，第%d列表头必须是Catalogue，当前为%s", index+1, header)
-			}
-			expected = "tag"
-			index++
-		case "tag":
-			if header != "tag" {
-				return 0, fmt.Errorf("helpdoc表头格式错误，第%d列表头必须是Tag", index+1)
-			}
-			break out
-		default:
-			return 0, fmt.Errorf("错误的表头校验状态，当前等待表头%s，实际获得%s", expected, header)
-		}
-	}
-	return synonymCount, nil
+	return true
 }
 
 func (m *HelpManager) addCmdMap(packageName string, cmdMap CmdMapCls) error {
-	log := logger.M()
+	log := zap.S().Named(logger.LogKeyHelpDoc)
 	for k, v := range cmdMap {
 		content := v.Help
 		if content == "" {
 			content = v.ShortHelp
 		}
-		err := m.AddItem(docengine.HelpTextItem{
-			Group:       HelpBuiltinGroup,
+		err := m.AddItem(helpdoc.HelpTextItem{
+			Group:       helpdoc.HelpBuiltinGroup,
 			Title:       k,
 			Content:     content,
 			PackageName: packageName,
@@ -463,8 +284,8 @@ func (m *HelpManager) addInternalCmdHelp(cmdMap CmdMapCls) error {
 
 func (m *HelpManager) addExternalCmdHelp(ext []*ExtInfo) error {
 	for _, i := range ext {
-		err := m.AddItem(docengine.HelpTextItem{
-			Group:       HelpBuiltinGroup,
+		err := m.AddItem(helpdoc.HelpTextItem{
+			Group:       helpdoc.HelpBuiltinGroup,
 			Title:       i.Name,
 			Content:     i.GetDescText(i),
 			PackageName: "扩展模块",
@@ -480,36 +301,32 @@ func (m *HelpManager) addExternalCmdHelp(ext []*ExtInfo) error {
 	return nil
 }
 
-func (m *HelpManager) AddItem(item docengine.HelpTextItem) error {
+func (m *HelpManager) AddItem(item helpdoc.HelpTextItem) error {
 	_, err := m.searchEngine.AddItem(item)
 	return err
 }
 
 func (m *HelpManager) AddItemApply(end bool) error {
-	err := m.searchEngine.AddItemApply(end)
+	err := m.searchEngine.Apply(end)
 	if err != nil {
 		return err
 	}
 	return nil
 }
 
-func (m *HelpManager) Search(ctx *MsgContext, text string, titleOnly bool, pageSize, pageNum int, group string) (res *docengine.GeneralSearchResult, total, pageStart, pageEnd int, err error) {
+func (m *HelpManager) Search(ctx *MsgContext, text string, titleOnly bool, pageSize, pageNum int, group string) (res helpdoc.SearchResult, total, pageStart, pageEnd int, err error) {
 	return m.searchEngine.Search(ctx.Group.HelpPackages, text, titleOnly, pageSize, pageNum, group)
 }
 
 func (m *HelpManager) GetSuffixText() string {
-	return m.searchEngine.GetSuffixText()
+	return fmt.Sprintf("(本次搜索由%s完成)", m.searchEngine.Name())
 }
 
 func (m *HelpManager) GetPrefixText() string {
-	return m.searchEngine.GetPrefixText()
+	return fmt.Sprintf("[%s] ", m.searchEngine.Name())
 }
 
-func (m *HelpManager) GetShowBestOffset() int {
-	return m.searchEngine.GetShowBestOffset()
-}
-
-func (m *HelpManager) GetContent(item *docengine.HelpTextItem, depth int) string {
+func (m *HelpManager) GetContent(item *helpdoc.HelpTextItem, depth int) string {
 	if depth > 7 {
 		return "{递归层数过多，不予显示}"
 	}
@@ -562,9 +379,9 @@ func generateHelpDocKey() string {
 }
 
 // 修改 buildHelpDocTree 函数签名，添加进度参数
-func buildHelpDocTree(node *HelpDoc, fn func(d *HelpDoc)) {
+func buildHelpDocTree(node *helpdoc.HelpDoc, fn func(d *helpdoc.HelpDoc)) {
 	// 收集所有节点
-	allNodes := []*HelpDoc{node}
+	allNodes := []*helpdoc.HelpDoc{node}
 
 	for i := 0; i < len(allNodes); i++ {
 		current := allNodes[i]
@@ -583,14 +400,14 @@ func buildHelpDocTree(node *HelpDoc, fn func(d *HelpDoc)) {
 			continue
 		}
 
-		current.Children = make([]*HelpDoc, 0)
+		current.Children = make([]*helpdoc.HelpDoc, 0)
 
 		for _, sub := range subs {
 			if strings.HasPrefix(sub.Name(), ".") {
 				continue
 			}
 
-			var child HelpDoc
+			var child helpdoc.HelpDoc
 			child.Key = generateHelpDocKey()
 			child.Name = sub.Name()
 			child.Path = path.Join(current.Path, sub.Name())
@@ -599,7 +416,7 @@ func buildHelpDocTree(node *HelpDoc, fn func(d *HelpDoc)) {
 
 			if sub.IsDir() {
 				child.Type = "dir"
-				child.Children = make([]*HelpDoc, 0)
+				child.Children = make([]*helpdoc.HelpDoc, 0)
 			} else {
 				child.Type = filepath.Ext(sub.Name())
 			}
@@ -652,7 +469,7 @@ func (m *HelpManager) UploadHelpDoc(src io.Reader, group string, name string) er
 			var fileExists bool
 			for _, child := range groupDir.Children {
 				if child.Name == name && filepath.Clean(child.Path) == filepath.Clean(filePath) && !child.Deleted {
-					if child.LoadStatus == Unload {
+					if child.LoadStatus == helpdoc.Unload {
 						child.Deleted = false
 						fileExists = true
 					} else {
@@ -661,7 +478,7 @@ func (m *HelpManager) UploadHelpDoc(src io.Reader, group string, name string) er
 				}
 			}
 			if !fileExists {
-				groupDir.Children = append(groupDir.Children, &HelpDoc{
+				groupDir.Children = append(groupDir.Children, &helpdoc.HelpDoc{
 					Key:   generateHelpDocKey(),
 					Name:  name,
 					Path:  filePath,
@@ -674,16 +491,16 @@ func (m *HelpManager) UploadHelpDoc(src io.Reader, group string, name string) er
 	}
 	if !groupExists {
 		if group != "" {
-			newGroupDir := HelpDoc{
+			newGroupDir := helpdoc.HelpDoc{
 				Key:      generateHelpDocKey(),
 				Name:     group,
 				Path:     dirPath,
 				Group:    group,
 				Type:     "dir",
 				IsDir:    true,
-				Children: make([]*HelpDoc, 0),
+				Children: make([]*helpdoc.HelpDoc, 0),
 			}
-			newGroupDir.Children = append(newGroupDir.Children, &HelpDoc{
+			newGroupDir.Children = append(newGroupDir.Children, &helpdoc.HelpDoc{
 				Key:   generateHelpDocKey(),
 				Name:  name,
 				Path:  filePath,
@@ -692,7 +509,7 @@ func (m *HelpManager) UploadHelpDoc(src io.Reader, group string, name string) er
 			})
 			m.HelpDocTree = append(m.HelpDocTree, &newGroupDir)
 		} else {
-			m.HelpDocTree = append(m.HelpDocTree, &HelpDoc{
+			m.HelpDocTree = append(m.HelpDocTree, &helpdoc.HelpDoc{
 				Key:   generateHelpDocKey(),
 				Name:  name,
 				Path:  filePath,
@@ -712,7 +529,7 @@ func (m *HelpManager) DeleteHelpDoc(keys []string) error {
 	}
 
 	for _, node := range m.HelpDocTree {
-		err := traverseHelpDocTree(node, func(d *HelpDoc) error {
+		err := traverseHelpDocTree(node, func(d *helpdoc.HelpDoc) error {
 			if !d.IsDir {
 				_, ok := keySet[d.Key]
 				if ok {
@@ -746,7 +563,7 @@ func (m *HelpManager) DeleteHelpDoc(keys []string) error {
 	return nil
 }
 
-func traverseHelpDocTree(root *HelpDoc, fn func(node *HelpDoc) error) error {
+func traverseHelpDocTree(root *helpdoc.HelpDoc, fn func(node *helpdoc.HelpDoc) error) error {
 	if root == nil {
 		return nil
 	}

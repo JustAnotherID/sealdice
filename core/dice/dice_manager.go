@@ -9,6 +9,7 @@ import (
 	"github.com/robfig/cron/v3"
 	"gopkg.in/yaml.v3"
 
+	"sealdice-core/dice/helpdoc"
 	"sealdice-core/logger"
 	"sealdice-core/utils/dboperator/engine"
 )
@@ -115,7 +116,7 @@ func (dm *DiceManager) InitHelp() {
 	dm.IsHelpReloading = true
 	_ = os.MkdirAll("./data/helpdoc", 0755)
 	dm.Help = new(HelpManager)
-	dm.Help.EngineType = EngineType(dm.HelpDocEngineType)
+	dm.Help.EngineType = helpdoc.EngineType(dm.HelpDocEngineType)
 	if len(dm.Dice) == 0 {
 		log.Fatalf("Dice实例不存在!")
 		return

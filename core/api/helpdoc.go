@@ -6,7 +6,7 @@ import (
 
 	"github.com/labstack/echo/v4"
 
-	"sealdice-core/dice"
+	"sealdice-core/dice/helpdoc"
 )
 
 func helpDocStatus(c echo.Context) error {
@@ -129,13 +129,13 @@ func helpGetTextItemPage(c echo.Context) error {
 		total, data := dm.Help.GetHelpItemPage(v.PageNum, v.PageSize, v.ID, v.Group, v.From, v.Title)
 		return Success(&c, Response{"total": total, "data": data})
 	}
-	return Success(&c, Response{"total": 0, "data": dice.HelpTextItems{}})
+	return Success(&c, Response{"total": 0, "data": helpdoc.HelpTextItems{}})
 }
 
 func helpGetConfig(c echo.Context) error {
 	if !dm.IsHelpReloading {
 		if dm.Help.Config == nil {
-			return c.JSON(http.StatusOK, dice.HelpConfig{Aliases: make(map[string][]string)})
+			return c.JSON(http.StatusOK, helpdoc.HelpConfig{Aliases: make(map[string][]string)})
 		}
 		return c.JSON(http.StatusOK, dm.Help.Config)
 	}
@@ -155,7 +155,7 @@ func helpSetConfig(c echo.Context) error {
 		return Error(&c, "帮助文档正在重新装载", Response{})
 	}
 
-	var v dice.HelpConfig
+	var v helpdoc.HelpConfig
 	err := c.Bind(&v)
 	if err != nil {
 		return c.NoContent(http.StatusBadRequest)

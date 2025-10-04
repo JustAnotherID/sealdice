@@ -1,4 +1,4 @@
-package docengine
+package engine
 
 import (
 	"errors"
@@ -12,29 +12,20 @@ import (
 	"github.com/blevesearch/bleve/v2/search/query"
 	index "github.com/blevesearch/bleve_index_api"
 
+	"sealdice-core/dice/helpdoc"
 	"sealdice-core/logger"
 )
 
-type BleveSearchEngine struct {
+type BleveEngine struct {
 	Index     bleve.Index
 	batch     *bleve.Batch
 	batchSize int
 	CurID     uint64
 }
 
-var indexDir = "./data/_index"
-var reSpace = regexp.MustCompile(`\s+`)
-
-// getNextID 使用原子操作，避免并发问题
-func (d *BleveSearchEngine) getNextID() string {
-	// 使用原子操作安全递增 CurID
-	nextID := atomic.AddUint64(&d.CurID, 1)
-	return strconv.FormatUint(nextID, 10)
-}
-
-// NewEngine 创建并初始化 BleveSearchEngine
-func NewBleveSearchEngine() (*BleveSearchEngine, error) {
-	engine := &BleveSearchEngine{}
+// NewBleveEngine 创建并初始化 BleveEngine
+func NewBleveEngine() (*BleveEngine, error) {
+	engine := &BleveEngine{}
 	err := engine.Init()
 	if err != nil {
 		return nil, err
@@ -42,19 +33,21 @@ func NewBleveSearchEngine() (*BleveSearchEngine, error) {
 	return engine, nil
 }
 
-func (d *BleveSearchEngine) GetSuffixText() string {
-	return "(本次搜索由全文搜索完成)"
+func (d *BleveEngine) Name() string {
+	return "Bleve 搜索"
 }
 
-func (d *BleveSearchEngine) GetPrefixText() string {
-	return "[全文搜索]"
+var indexDir = "./data/_index"
+var reSpace = regexp.MustCompile(`\s+`)
+
+// getNextID 使用原子操作，避免并发问题
+func (d *BleveEngine) getNextID() string {
+	// 使用原子操作安全递增 CurID
+	nextID := atomic.AddUint64(&d.CurID, 1)
+	return strconv.FormatUint(nextID, 10)
 }
 
-func (d *BleveSearchEngine) GetShowBestOffset() int {
-	return 1
-}
-
-func (d *BleveSearchEngine) Init() error {
+func (d *BleveEngine) Init() error {
 	mapping := bleve.NewIndexMapping()
 	docMapping := bleve.NewDocumentMapping()
 	contentFieldMapping := bleve.NewTextFieldMapping()
@@ -87,19 +80,19 @@ func (d *BleveSearchEngine) Init() error {
 	return nil
 }
 
-func (d *BleveSearchEngine) Close() {
+func (d *BleveEngine) Close() {
 	if d.Index != nil {
 		_ = d.Index.Close()
 		d.Index = nil
 	}
 }
 
-func (d *BleveSearchEngine) GetTotalID() uint64 {
+func (d *BleveEngine) GetTotalID() uint64 {
 	return d.CurID
 }
 
 // AddItem 这里引用了dice，其实不妥，应该将它单独拆出来的。
-func (d *BleveSearchEngine) AddItem(item HelpTextItem) (string, error) {
+func (d *BleveEngine) AddItem(item helpdoc.HelpTextItem) (string, error) {
 	// 如果batch为空，初始化一个batch
 	if d.batch == nil {
 		return "", errors.New("已通过end参数执行AddItemApply，不允许新增文档。请检查代码逻辑")
@@ -116,7 +109,7 @@ func (d *BleveSearchEngine) AddItem(item HelpTextItem) (string, error) {
 	d.batchSize++
 	// 五十一次执行
 	if d.batchSize >= 50 {
-		err := d.AddItemApply(false)
+		err := d.Apply(false)
 		d.batchSize = 0
 		if err != nil {
 			return "", err
@@ -125,10 +118,10 @@ func (d *BleveSearchEngine) AddItem(item HelpTextItem) (string, error) {
 	return id, d.batch.Index(id, data)
 }
 
-// AddItemApply 这里认为是真正执行插入文档的逻辑
+// Apply 这里认为是真正执行插入文档的逻辑
 // 由于现在已经将执行函数改为了可按文件执行，所以可以按文件进行Apply，这应当不会有太大的量级。
 // end代表是否是最后一次执行，一般用在所有的数据都处理完之后，关闭逻辑的时候使用，如bleve batch重复利用后最后销毁
-func (d *BleveSearchEngine) AddItemApply(end bool) error {
+func (d *BleveEngine) Apply(end bool) error {
 	if d.batch != nil {
 		// 执行batch
 		err := d.Index.Batch(d.batch)
@@ -148,7 +141,7 @@ func (d *BleveSearchEngine) AddItemApply(end bool) error {
 	return nil
 }
 
-func (d *BleveSearchEngine) Search(helpPackages []string, text string, titleOnly bool, pageSize, pageNum int, group string) (*GeneralSearchResult, int, int, int, error) {
+func (d *BleveEngine) Search(helpPackages []string, text string, titleOnly bool, pageSize, pageNum int, group string) (helpdoc.SearchResult, int, int, int, error) {
 	// 在标题中查找
 	queryTitle := query.NewMatchPhraseQuery(text)
 	queryTitle.SetField("title")
@@ -185,11 +178,11 @@ func (d *BleveSearchEngine) Search(helpPackages []string, text string, titleOnly
 	req.Fields = []string{"*"}
 	res, err := d.Index.Search(req)
 	if err != nil {
-		return nil, 0, 0, 0, err
+		return helpdoc.SearchResult{}, 0, 0, 0, err
 	}
-	var resultList = make(MatchCollection, 0)
+	var resultList = make(helpdoc.MatchCollection, 0)
 	for _, hit := range res.Hits {
-		result := MatchResult{
+		result := helpdoc.MatchResult{
 			ID:     hit.ID,
 			Fields: hit.Fields,
 			Score:  hit.Score,
@@ -197,18 +190,39 @@ func (d *BleveSearchEngine) Search(helpPackages []string, text string, titleOnly
 		resultList = append(resultList, &result)
 	}
 	// 转换搜索格式
-	responseResult := GeneralSearchResult{
-		Hits:  resultList,
-		Total: res.Total,
-	}
 	total := int(res.Total)
 	pageStart := (pageNum - 1) * pageSize
 	pageEnd := pageStart + len(res.Hits)
-	return &responseResult, total, pageStart, pageEnd, nil
+
+	// 标记第一条是否准确命中
+	hitBest := true
+	if total > 1 {
+		const offset = 1.0
+		val := resultList[1].Score - resultList[0].Score
+		if val < 0 {
+			val = -val
+		}
+		if val > offset {
+			hitBest = true
+		}
+
+		bestRaw := resultList[0].Fields
+		bestTitle := fmt.Sprintf("%v", bestRaw["title"])
+		if bestTitle == text {
+			hitBest = true
+		}
+	}
+
+	responseResult := helpdoc.SearchResult{
+		Hits:    resultList,
+		Total:   res.Total,
+		HitBest: hitBest,
+	}
+	return responseResult, total, pageStart, pageEnd, nil
 }
 
-func (d *BleveSearchEngine) PaginateDocuments(pageSize, pageNum int, group, from, title string) (uint64, []*HelpTextItem, error) {
-	var items []*HelpTextItem
+func (d *BleveEngine) PaginateDocuments(pageSize, pageNum int, group, from, title string) (uint64, []*helpdoc.HelpTextItem, error) {
+	var items []*helpdoc.HelpTextItem
 	// 只有Keyword才支持NewTermQuery
 	conjunctionQuery := bleve.NewConjunctionQuery()
 	if group != "" {
@@ -250,7 +264,7 @@ func (d *BleveSearchEngine) PaginateDocuments(pageSize, pageNum int, group, from
 	// 处理结果
 	for _, hit := range searchResult.Hits {
 		fields := hit.Fields
-		item := &HelpTextItem{
+		item := &helpdoc.HelpTextItem{
 			Group:       fmt.Sprintf("%v", fields["group"]),
 			From:        fmt.Sprintf("%v", fields["from"]),
 			Title:       fmt.Sprintf("%v", fields["title"]),
@@ -264,7 +278,7 @@ func (d *BleveSearchEngine) PaginateDocuments(pageSize, pageNum int, group, from
 	return searchResult.Total, items, nil
 }
 
-func (d *BleveSearchEngine) GetItemByID(id string) (*HelpTextItem, error) {
+func (d *BleveEngine) GetItemByID(id string) (*helpdoc.HelpTextItem, error) {
 	log := logger.M()
 	document, err := d.Index.Document(id)
 	if err != nil {
@@ -274,7 +288,7 @@ func (d *BleveSearchEngine) GetItemByID(id string) (*HelpTextItem, error) {
 	if document == nil {
 		return nil, errors.New("未找到匹配的文档")
 	}
-	item := HelpTextItem{}
+	item := helpdoc.HelpTextItem{}
 	// 看了看源码，意思就是这样访问文档内的所有fields
 	document.VisitFields(func(field index.Field) {
 		name := field.Name()
@@ -300,7 +314,7 @@ func (d *BleveSearchEngine) GetItemByID(id string) (*HelpTextItem, error) {
 }
 
 // 精确查询title
-func (d *BleveSearchEngine) GetHelpTextItemByTermTitle(title string) (*HelpTextItem, error) {
+func (d *BleveEngine) GetHelpTextItemByTermTitle(title string) (*helpdoc.HelpTextItem, error) {
 	newTermQuery := query.NewMatchQuery(title)
 	newTermQuery.SetField("title") // 精确匹配title
 	req := bleve.NewSearchRequest(newTermQuery)
@@ -312,7 +326,7 @@ func (d *BleveSearchEngine) GetHelpTextItemByTermTitle(title string) (*HelpTextI
 	// 取出结果
 	if len(res.Hits) > 0 {
 		fields := res.Hits[0].Fields
-		return &HelpTextItem{
+		return &helpdoc.HelpTextItem{
 			Group:       fmt.Sprintf("%v", fields["group"]),
 			From:        fmt.Sprintf("%v", fields["from"]),
 			Title:       fmt.Sprintf("%v", fields["title"]),
