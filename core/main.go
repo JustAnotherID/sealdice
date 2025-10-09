@@ -178,12 +178,12 @@ func main() {
 	}
 	// 防止输出
 	if opts.Version {
-		fmt.Fprintln(os.Stdout, dice.VERSION.String())
+		_, _ = fmt.Fprintf(os.Stdout, "%s %s\n", dice.APPNAME, dice.VERSION.String())
 		return
 	}
 	if opts.ShowEnv {
 		for i, e := range os.Environ() {
-			fmt.Fprintln(os.Stdout, i, e)
+			_, _ = fmt.Fprintln(os.Stdout, i, e)
 		}
 		return
 	}
