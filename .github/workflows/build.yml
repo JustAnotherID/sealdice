@@ -628,7 +628,7 @@ jobs:
     permissions:
       actions: write
     steps:
-      - uses: geekyeggo/delete-artifact@v4
+      - uses: geekyeggo/delete-artifact@v5
         with:
           token: ${{ github.token }}
           name: |
