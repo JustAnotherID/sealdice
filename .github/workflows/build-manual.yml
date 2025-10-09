@@ -16,7 +16,7 @@ jobs:
     runs-on: ubuntu-latest
     if: (github.repository_owner == 'sealdice-ce' && github.ref_name == 'master') || github.repository_owner != 'sealdice-ce'
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
         with:
