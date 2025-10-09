@@ -22,7 +22,7 @@
     "@codemirror/state": "^6.5.2",
     "@codemirror/view": "^6.38.2",
     "@lezer/highlight": "^1.2.1",
-    "@uiw/codemirror-theme-material": "^4.25.1",
+    "@uiw/codemirror-theme-material": "^4.25.2",
     "@vueuse/core": "^13.9.0",
     "axios": "^1.12.2",
     "clipboard": "^2.0.11",
