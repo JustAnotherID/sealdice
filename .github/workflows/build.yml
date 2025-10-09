@@ -312,7 +312,7 @@ jobs:
           fi
 
       - name: Get Core
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v5
         with:
           name: core_${{ env.PROJECT_VERSION }}_${{ matrix.goos }}_${{ matrix.goarch }}
           path: ./temp/
@@ -393,7 +393,7 @@ jobs:
           echo "PROJECT_VERSION_DOT=${CUR_TIME}.${COMMIT_ID::7}" >> $GITHUB_ENV;
 
       - name: Get Core-android
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v5
         with:
           name: core_${{ env.PROJECT_VERSION }}_android_arm64
           path: ./android/app/src/main/assets/sealdice
@@ -499,7 +499,7 @@ jobs:
         with:
           fetch-depth: 0
       - name: Get Files
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v5
         with:
           pattern: sealdice-ce*
           path: ./dist/
@@ -570,12 +570,12 @@ jobs:
           echo "PROJECT_VERSION_DOT=${CUR_TIME}.${COMMIT_ID::7}" >> $GITHUB_ENV;
 
       - name: Get Amd64 Core
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v5
         with:
           name: core_${{ env.PROJECT_VERSION }}_linux_amd64
           path: ./amd64/
       - name: Get Arm64 Core
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v5
         with:
           name: core_${{ env.PROJECT_VERSION }}_linux_arm64
           path: ./arm64/
