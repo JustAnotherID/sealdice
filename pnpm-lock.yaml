@@ -248,8 +248,8 @@ importers:
         specifier: ^0.7.39
         version: 0.7.39
       '@vicons/carbon':
-        specifier: ^0.12.0
-        version: 0.12.0
+        specifier: ^0.13.0
+        version: 0.13.0
       '@vitejs/plugin-legacy':
         specifier: ^7.2.1
         version: 7.2.1(terser@5.44.0)(vite@7.1.7(@types/node@24.5.2)(jiti@2.6.1)(lightningcss@1.30.2)(sass@1.93.1)(terser@5.44.0)(yaml@2.8.1))
@@ -2824,8 +2824,8 @@ packages:
   '@ungap/structured-clone@1.3.0':
     resolution: {integrity: sha512-WmoN8qaIAo7WTYWbAZuG8PYEhn5fkz7dZrqTBZ7dtt//lL2Gwms1IcnQ5yHqjDfX8Ft5j4YzDM23f87zBfDe9g==}
 
-  '@vicons/carbon@0.12.0':
-    resolution: {integrity: sha512-kCOgr/ZOhZzoiFLJ8pwxMa2TMxrkCUOA22qExPabus35F4+USqzcsxaPoYtqRd9ROOYiHrSqwapak/ywF0D9bg==}
+  '@vicons/carbon@0.13.0':
+    resolution: {integrity: sha512-Z/jExyyS4gsXJc66oTqV/j98nsaiX2JlQ0IUwu9Ms3rztf8VOHEQRuX8Jey1/zbxJpFY/tU+bWvKPRFYGIvCWQ==}
 
   '@vitejs/plugin-legacy@7.2.1':
     resolution: {integrity: sha512-CaXb/y0mlfu7jQRELEJJc2/5w2bX2m1JraARgFnvSB2yfvnCNJVWWlqAo6WjnKoepOwKx8gs0ugJThPLKCOXIg==}
@@ -8231,7 +8231,7 @@ snapshots:
 
   '@ungap/structured-clone@1.3.0': {}
 
-  '@vicons/carbon@0.12.0': {}
+  '@vicons/carbon@0.13.0': {}
 
   '@vitejs/plugin-legacy@7.2.1(rolldown-vite@7.1.16(@types/node@24.5.2)(esbuild@0.25.10)(jiti@2.5.1)(sass@1.93.1)(terser@5.44.0)(yaml@2.8.1))(terser@5.44.0)':
     dependencies:
