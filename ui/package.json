@@ -48,7 +48,7 @@
     "@iconify-json/bi": "^1.2.4",
     "@iconify-json/carbon": "^1.2.13",
     "@prettier/plugin-oxc": "^0.0.4",
-    "@tailwindcss/vite": "^4.1.13",
+    "@tailwindcss/vite": "^4.1.14",
     "@tsconfig/node22": "^22.0.2",
     "@types/node": "^24.5.2",
     "@types/qs": "^6.14.0",
