@@ -208,8 +208,8 @@ importers:
         specifier: ^1.1.1
         version: 1.1.1
       hyperparam:
-        specifier: ^0.2.49
-        version: 0.2.53
+        specifier: ^0.3.23
+        version: 0.3.23(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       image-size:
         specifier: ^2.0.2
         version: 2.0.2
@@ -4077,11 +4077,11 @@ packages:
     resolution: {integrity: sha512-Xwwo44whKBVCYoliBQwaPvtd/2tYFkRQtXDWj1nackaV2JPXx3L0+Jvd8/qCJ2p+ML0/XVkJ2q+Mr+UVdpJK5w==}
     engines: {node: '>=12.0.0'}
 
-  hightable@0.17.2:
-    resolution: {integrity: sha512-+ZH1GufUKK7WEqt59zI5LbSyfJLZotbnYgMzJT796U2c45PpZEtFuQllmSS4iv+xcZNuFBsIiUAFIpdanpTyxA==}
+  hightable@0.20.1:
+    resolution: {integrity: sha512-b3M5XD8c8yPs1AfbBLxQdvaZkGEP9w7YdGEsIuaqxgLNmUNAp117za6ZoTFSkhPyjSZBbiynLaX4cj3df6xtAQ==}
     peerDependencies:
-      react: ^18.3.1
-      react-dom: ^18.3.1
+      react: ^18.3.1 || ^19
+      react-dom: ^18.3.1 || ^19
 
   hookable@5.5.3:
     resolution: {integrity: sha512-Yc+BQe8SvoXH1643Qez1zqLRmbA5rCL+sSmk6TVos0LWVfNIB7PGncdlId77WzLGSIB5KaWgTaNTs2lNVEI6VQ==}
@@ -4109,15 +4109,18 @@ packages:
   hyparquet@1.13.1:
     resolution: {integrity: sha512-xzUYyfqtIZypo5I1F2HXgnX5J4axKooVZj5GW58kUevfqsmnccZQ3mt+ByYE1MuX9v2pcYVZg48WW1hnO6ypSw==}
 
-  hyparquet@1.16.2:
-    resolution: {integrity: sha512-r9qrcgmOq4YDOu0rVeaqQXjqMmb/QpwFHu9/uWuv7KhsCrNm5uElGLkG5jQaIerOOganHufxVuGQ/TJBEqkVNg==}
-
   hyparquet@1.17.7:
     resolution: {integrity: sha512-gU83n46uiN0rKsBGsSKVO1z6Dw5pton/cePkgwc1NTgWPRZ2yVvUO3k4bzyX550G1ySeeghccC3QAcCW6cpLVQ==}
 
-  hyperparam@0.2.53:
-    resolution: {integrity: sha512-WfTUu/8MHQ9d7fyj7ANzQ/EyPMywgJek86R1ByUbewuMtWDKz84b/1OGRAKeQZVUmppnU2kvP1FypIs/y2xT4A==}
+  hyparquet@1.19.0:
+    resolution: {integrity: sha512-SY8PolBC2lR37cjyY9+wjxACNQdrBhLwNP/o59x3pBhaPdV4xXYtSEiulGFfW3i3cEUvquz/n+NCzVSRugqqjA==}
+
+  hyperparam@0.3.23:
+    resolution: {integrity: sha512-9hCb9hrOCLK42uaUDmO5BJ51Ba0r6IAXKXDqrEA/TH0r1h6H3TC3h9Ja15JrEvmCxn4AYVbxtKkHNPbcT4EWVg==}
     hasBin: true
+    peerDependencies:
+      react: ^18.3.1 || ^19
+      react-dom: ^18.3.1 || ^19
 
   hysnappy@1.0.0:
     resolution: {integrity: sha512-MNrC4NfwDGPb889O6gIfEtbvEZCSWUsSEhsz4Oq2FRcpGtXHfeVz3KciSPp5Pnnz1NjFMgDQNfxdJozymJEDDA==}
@@ -9729,7 +9732,7 @@ snapshots:
 
   highlight.js@11.11.1: {}
 
-  hightable@0.17.2(react-dom@18.3.1(react@18.3.1))(react@18.3.1):
+  hightable@0.20.1(react-dom@18.3.1(react@18.3.1))(react@18.3.1):
     dependencies:
       react: 18.3.1
       react-dom: 18.3.1(react@18.3.1)
@@ -9757,14 +9760,14 @@ snapshots:
 
   hyparquet@1.13.1: {}
 
-  hyparquet@1.16.2: {}
-
   hyparquet@1.17.7: {}
 
-  hyperparam@0.2.53:
+  hyparquet@1.19.0: {}
+
+  hyperparam@0.3.23(react-dom@18.3.1(react@18.3.1))(react@18.3.1):
     dependencies:
-      hightable: 0.17.2(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
-      hyparquet: 1.16.2
+      hightable: 0.20.1(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      hyparquet: 1.19.0
       hyparquet-compressors: 1.1.1
       icebird: 0.3.0
       react: 18.3.1
