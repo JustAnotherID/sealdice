@@ -47,7 +47,7 @@
   "devDependencies": {
     "@tsconfig/node22": "^22.0.2",
     "@types/file-saver": "^2.0.7",
-    "@types/node": "^24.7.0",
+    "@types/node": "^24.7.2",
     "@types/randomcolor": "^0.5.9",
     "@types/ua-parser-js": "^0.7.39",
     "@vicons/carbon": "^0.13.0",
