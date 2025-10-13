@@ -95,7 +95,6 @@ declare module 'vue' {
     NDivider: typeof import('naive-ui')['NDivider']
     NDrawer: typeof import('naive-ui')['NDrawer']
     NDrawerContent: typeof import('naive-ui')['NDrawerContent']
-    NDynamicInput: typeof import('naive-ui')['NDynamicInput']
     NEllipsis: typeof import('naive-ui')['NEllipsis']
     NestedDraggable: typeof import('./src/components/utils/nested-draggable.vue')['default']
     NFlex: typeof import('naive-ui')['NFlex']

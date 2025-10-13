@@ -8,5 +8,5 @@ export function getSalt() {
 }
 
 export function signin(password: string) {
-  return request<{ token: string }>('post', '', { password });
+  return request<{ token: string }>('post', '/do', { password });
 }

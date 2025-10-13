@@ -177,9 +177,9 @@
       <strong>「综合设置」>「基本设置」</strong> 界面，设置
       <strong>UI 界面密码</strong>。或切换为只有本机可访问。<br />
     </n-text>
-    <n-gradient-text type="warning" class="mt-4">
+    <n-text type="warning" class="mt-4 block">
       如果您不了解上面在说什么，请务必设置一个密码！
-    </n-gradient-text>
+    </n-text>
 
     <template #action>
       <n-button type="primary" :disabled="!canSkip" @click="dialogCheckPassword = false">

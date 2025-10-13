@@ -95,6 +95,10 @@ export function postConnectionQrcode(id: string) {
   return request<{ img: string }>('post', 'qrcode', { id });
 }
 
+export function postConnectSetEnable(id: string, enable: boolean) {
+  return request<DiceConnection>('post', 'set_enable', { id, enable });
+}
+
 export interface DiceConnection {
   id: string;
   state: number;

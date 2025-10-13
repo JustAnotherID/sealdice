@@ -78,6 +78,7 @@ func bindImConnectionApi(root *echo.Group) {
 	im.POST("/addMilky", ImConnectionsAddMilky)
 
 	im.POST("/del", ImConnectionsDel)
+	im.POST("/set_enable", ImConnectionsSetEnable)
 	im.GET("/get_lgr_signinfo", ImConnectionsGetSignInfo)
 	im.POST("/gocqhttpRelogin", ImConnectionsGocqhttpRelogin)
 	im.GET("/gocq_config_download.zip", ImConnectionsGocqConfigDownload)
@@ -127,7 +128,7 @@ func bindPublicDiceApi(root *echo.Group) {
 
 func bindSignInApi(root *echo.Group) {
 	signin := root.Group("/signin")
-	signin.POST("/signin", doSignIn)
+	signin.POST("/do", doSignIn)
 	signin.GET("/salt", doSignInGetSalt)
 	signin.GET("/checkSecurity", checkSecurity)
 }

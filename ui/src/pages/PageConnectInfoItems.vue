@@ -725,6 +725,7 @@ import {
   getLagrangeSignInfo,
   postConnectionDel,
   postConnectionQrcode,
+  postConnectSetEnable,
   type SignInfo,
 } from '~/api/v1/im_connections';
 import { postToolOnebot } from '~/api/v1/others';
@@ -918,6 +919,50 @@ const formClose = async () => {
   dialogFormVisible.value = false;
   form.step = 1;
   form.isEnd = false;
+};
+
+const setEnable = async (i: DiceConnection, val: boolean) => {
+  const ret = await postConnectSetEnable(i.id, val);
+  i.enable = ret.enable;
+  curCaptchaIdSet.value = '';
+  message.success('状态修改完成');
+  if (val) {
+    setRecentLogin();
+    // 若是启用骰子，走登录流程
+    curConnId.value = ''; // 先改掉这个，以免和当前连接一致，导致被瞬间重置
+    await nextTick(() => {
+      curConnId.value = i.id;
+    });
+    // store.gocqhttpReloginImConnection(i).then(theConn => {
+    //   curConnId.value = i.id;
+    // })
+
+    // 重复登录时，也打开这个窗口
+    activities.value = [];
+    dialogFormVisible.value = true;
+
+    if (i.adapter.useInPackGoCqhttp) {
+      form.step = 2;
+      activities.value.push(fullActivities[4]);
+      activities.value.push(fullActivities[5]);
+      activities.value.push(fullActivities[2]);
+    } else {
+      form.step = 4;
+      form.isEnd = true;
+    }
+  }
+};
+
+const askSetEnable = async (i: DiceConnection, val: boolean) => {
+  dialog.warning({
+    title: '警告',
+    content: '确认修改此账号的在线状态吗',
+    positiveText: '确定',
+    negativeText: '取消',
+    onPositiveClick: async () => {
+      await setEnable(i, val);
+    },
+  });
 };
 
 const askGocqhttpReLogin = async (i: DiceConnection) => {
@@ -1125,11 +1170,6 @@ onBeforeMount(async () => {
   await store.getImConnections();
   for (const i of store.curDice.conns || []) {
     delete store.curDice.qrcodes[i.id];
-  }
-
-  const versionsRes = await getConnectQQVersion();
-  if (versionsRes.result) {
-    supportedQQVersions.value = ['', ...versionsRes.versions];
   }
 
   // form.accountType 默认账号类型，在 android 与 mac 系统中，默认账号类型为内置 gocq，其余系统为内置客户端

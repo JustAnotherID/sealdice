@@ -38,6 +38,35 @@ func ImConnectionsGet(c echo.Context) error {
 	return c.JSON(http.StatusNotFound, nil)
 }
 
+func ImConnectionsSetEnable(c echo.Context) error {
+	if !doAuth(c) {
+		return c.JSON(http.StatusForbidden, nil)
+	}
+	if dm.JustForTest {
+		return c.JSON(http.StatusOK, map[string]interface{}{
+			"testMode": true,
+		})
+	}
+
+	v := struct {
+		ID     string `form:"id"     json:"id"`
+		Enable bool   `form:"enable" json:"enable"`
+	}{}
+	err := c.Bind(&v)
+	if err == nil {
+		for _, i := range myDice.ImSession.EndPoints {
+			if i.ID == v.ID {
+				i.SetEnable(myDice, v.Enable)
+				return c.JSON(http.StatusOK, i)
+			}
+		}
+	}
+
+	myDice.LastUpdatedTime = time.Now().Unix()
+	myDice.Save(false)
+	return c.JSON(http.StatusNotFound, nil)
+}
+
 func ImConnectionsGetSignInfo(c echo.Context) error {
 	if !doAuth(c) {
 		return c.JSON(http.StatusForbidden, nil)
