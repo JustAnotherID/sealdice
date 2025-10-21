@@ -15,8 +15,8 @@ github.com/RoaringBitmap/roaring/v2 v2.10.0 h1:HbJ8Cs71lfCJyvmSptxeMX2PtvOC8yonl
 github.com/RoaringBitmap/roaring/v2 v2.10.0/go.mod h1:FiJcsfkGje/nZBZgCu0ZxCPOKD/hVXDS2dXi7/eUFE0=
 github.com/ShiraazMoollatjie/goluhn v0.0.0-20211017190329-0d86158c056a h1:NPnGVqpua4c1iEFVdxnBJA9viP5bo2Zp2jfflbcjdto=
 github.com/ShiraazMoollatjie/goluhn v0.0.0-20211017190329-0d86158c056a/go.mod h1:5LI6VqIHoGmWsR0EJLbct5bBrtM/0pTonaAyGKmFk9U=
-github.com/Szzrain/Milky-go-sdk v0.4.1 h1:9lJIFL+pTS/3xDY6ILXTnypdJ8I8USVIt+8uamcs1ZY=
-github.com/Szzrain/Milky-go-sdk v0.4.1/go.mod h1:vyl5G/6TQha+Ygf9ZWkDN//7dJFq2V0ezdk3Rm2kDKQ=
+github.com/Szzrain/Milky-go-sdk v1.0.0 h1:5WpkUXxHLc42zY/KpjPYp24uNj8XTQUa+k+H1ekUH9c=
+github.com/Szzrain/Milky-go-sdk v1.0.0/go.mod h1:vyl5G/6TQha+Ygf9ZWkDN//7dJFq2V0ezdk3Rm2kDKQ=
 github.com/acarl005/stripansi v0.0.0-20180116102854-5a71ef0e047d h1:licZJFw2RwpHMqeKTCYkitsPqHNxTmd4SNR5r94FGM8=
 github.com/acarl005/stripansi v0.0.0-20180116102854-5a71ef0e047d/go.mod h1:asat636LX7Bqt5lYEZ27JNDcqxfjdBQuJ/MM4CN/Lzo=
 github.com/alexmullins/zip v0.0.0-20180717182244-4affb64b04d0 h1:BVts5dexXf4i+JX8tXlKT0aKoi38JwTXSe+3WUneX0k=
