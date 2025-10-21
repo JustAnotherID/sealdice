@@ -116,7 +116,7 @@ jobs:
           - manual
     steps:
       - uses: actions/checkout@v5
-      - uses: DavidAnson/markdownlint-cli2-action@v16
+      - uses: DavidAnson/markdownlint-cli2-action@v20
         with:
           globs: "${{ matrix.package }}/**/*.md"
 
