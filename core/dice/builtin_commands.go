@@ -584,7 +584,7 @@ func (d *Dice) registerCoreCommands() {
 						return CmdExecuteResult{Matched: true, Solved: true}
 					}
 
-					if !cmdArgs.AmIBeMentioned {
+					if !cmdArgs.AmIBeMentioned && !ctx.Dice.Config.BotExitWithoutAt {
 						// 裸指令，如果当前群内开启，予以提示
 						if ctx.IsCurGroupBotOn {
 							ReplyToSender(ctx, msg, "[退群指令] 请@我使用这个命令，以进行确认")
@@ -694,7 +694,7 @@ func (d *Dice) registerCoreCommands() {
 				// 如果是别人被at，置之不理
 				return CmdExecuteResult{Matched: true, Solved: true}
 			}
-			if !cmdArgs.AmIBeMentioned {
+			if !cmdArgs.AmIBeMentioned && !ctx.Dice.Config.BotExitWithoutAt {
 				// 裸指令，如果当前群内开启，予以提示
 				if ctx.IsCurGroupBotOn {
 					ReplyToSender(ctx, msg, "[退群指令] 请@我使用这个命令，以进行确认")
@@ -1203,7 +1203,6 @@ func (d *Dice) registerCoreCommands() {
 		Help:                    "骰点:\n" + helpRoll,
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
 			var text string
-			var diceResult int64
 			var diceResultExists bool
 			var detail string
 
@@ -1231,6 +1230,7 @@ func (d *Dice) registerCoreCommands() {
 				forWhat := ""
 				var matched string
 
+				var diceResultX *ds.VMValue
 				if len(cmdArgs.Args) >= 1 { //nolint:nestif
 					var err error
 					r, detail, err = DiceExprEvalBase(ctx, cmdArgs.CleanArgs, RollExtraFlags{
@@ -1252,8 +1252,8 @@ func (d *Dice) registerCoreCommands() {
 						})
 					}
 
-					if r != nil && r.TypeId == ds.VMTypeInt {
-						diceResult = int64(r.MustReadInt())
+					if r != nil {
+						diceResultX = r.VMValue
 						diceResultExists = true
 					}
 
@@ -1297,9 +1297,20 @@ func (d *Dice) registerCoreCommands() {
 					// 指令信息标记
 					item := map[string]interface{}{
 						"expr":   matched,
-						"result": diceResult,
 						"reason": forWhat,
 					}
+
+					if diceResultX != nil {
+						switch diceResultX.TypeId {
+						case ds.VMTypeInt:
+							item["result"] = diceResultX.MustReadInt()
+						case ds.VMTypeFloat:
+							item["result"] = diceResultX.MustReadFloat()
+						default:
+							item["result"] = diceResultX.ToRepr()
+						}
+					}
+
 					if forWhat == "" {
 						delete(item, "reason")
 					}
@@ -1307,7 +1318,8 @@ func (d *Dice) registerCoreCommands() {
 
 					VarSetValueStr(ctx, "$t表达式文本", matched)
 					VarSetValueStr(ctx, "$t计算过程", detailWrap)
-					VarSetValueInt64(ctx, "$t计算结果", diceResult)
+					// VarSetValueInt64(ctx, "$t计算结果", diceResult)
+					VarSetValue(ctx, "$t计算结果", diceResultX)
 				} else {
 					var val int64
 					var detail string
